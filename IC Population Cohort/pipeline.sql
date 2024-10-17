@@ -12,21 +12,17 @@ SELECT codeset_id,concept_id, concept_name,case
                                       when codeset_id = 961228276 then 'solid_organ_transplant_diagnosis'
                                       when codeset_id = 222300534 then 'Hematopoietic_stem_cell_px_procedure'
                                       when codeset_id = 330926778 then 'dialysis_procedure'
-                                      when codeset_id = 715550969 then 'Hematological_malignencies'
-                                      when codeset_id = 797180958 then 'B-Cell_depling_therapy'
                                       when codeset_id = 91206032 then 'End_stage_renal_disease_diagnosis'
-                                      when codeset_id = 141311032 then 'graft_vs_host_diagnosis'
                                       when codeset_id = 332337787 then 'Hematopoietic_stem_cell_px_diagnosis'
                                       when codeset_id = 338556896 then 'metastic_solid_tumor_diagnosis'
                                       when codeset_id = 800576185 then 'dialysis_diagnosis'
                                       when codeset_id = 554885567 then 'primery_immonodeficiency_diagnosis'
-                                      when codeset_id = 117835086 then 'solid_tumor'
                                       when codeset_id = 226846470 then 'any_malignancy_except_malignant'
                                       when codeset_id = 911760988 then 'cancer_therapies'
                                       else 'Others' end as Indication                 
 
 FROM concept_set_members
-where codeset_id in(269366633, 39995760, 88684702, 961228276, 222300534, 330926778, 715550969,797180958,91206032, 141311032, 332337787, 338556896, 800576185, 554885567, 117835086, 226846470,911760988)
+where codeset_id in(269366633, 39995760, 88684702, 961228276, 222300534, 330926778,91206032, 332337787, 338556896, 800576185, 554885567, 226846470,911760988)
 
 -- Finding related diagnosis, medications, procedures, observations & measurements
 
@@ -164,7 +160,11 @@ select * from (
             union all
             SELECT person_id, Indication, observation_date as organ_transplant_date,index_date
             FROM IC_observation
-            where Indication in ('solid_organ_transplant_diagnosis','solid_organ_transplant_procedure')))
+            where Indication in ('solid_organ_transplant_diagnosis')
+            union all
+            SELECT person_id, Indication, measurement_date as organ_transplant_date, index_date
+            FROM IC_measurement
+            where Indication in ('solid_organ_transplant_procedure')))
 where diff >= -1460 and diff <= 0
 
 -- 5. Receipt of chimeric antigen receptor T-cell (CAR-T) or hematopoietic stem cell transplant (HSCT)
@@ -178,18 +178,18 @@ where diff >= -1460 and diff <= 0
 )
 select * from (
     select *, datediff(car_t_or_hsct_date,index_date) as diff from (
-    SELECT person_id, Indication, drug_exposure_start_date as car_t_or_hsct_date, index_date
-    FROM IC_drug_exposure
-    where Indication in ('car_t_therapy_procedure')
-    union
     SELECT person_id, Indication, procedure_date as car_t_or_hsct_date, index_date
     FROM IC_procedures
-    where Indication in ('car_t_therapy_procedure','Hematopoietic_stem_cell_px_procedure')
-    union
+    where Indication in ('car_t_therapy_procedure','Hematopoietic_stem_cell_px_procedure','Hematopoietic_stem_cell_px_diagnosis')
+    union all
+    SELECT person_id, Indication, condition_start_date as car_t_or_hsct_date,index_date
+    FROM IC_diagnosis
+    where Indication in ('Hematopoietic_stem_cell_px_diagnosis')
+    union all
     SELECT person_id, Indication, observation_date as car_t_or_hsct_date, index_date
     FROM IC_observation
-    where Indication in ('Hematopoietic_stem_cell_px_procedure')
-    union
+    where Indication in ('Hematopoietic_stem_cell_px_diagnosis')
+    union all
     SELECT person_id, Indication, measurement_date as car_t_or_hsct_date, index_date
     FROM IC_measurement
     where Indication in ('Hematopoietic_stem_cell_px_procedure')))
@@ -247,7 +247,7 @@ where diff >= -1460 and diff < 0
     IC_observation=Input(rid="ri.foundry.main.dataset.a97d2088-67db-43b2-a0f7-893f35ba38fd"),
     IC_procedures=Input(rid="ri.foundry.main.dataset.9ab04f4d-eecb-46eb-acdd-7cceea3d3bfd")
 )
-select distinct person_id from (
+select * from (
     select *, datediff(esrd_or_diaysis_date,index_date) as diff from (
 SELECT person_id, Indication, condition_start_date as esrd_or_diaysis_date, index_date
 FROM IC_diagnosis
@@ -256,10 +256,6 @@ union
 SELECT person_id, Indication,procedure_date as esrd_or_diaysis_date, index_date
 FROM IC_procedures
 where Indication in ('dialysis_procedure','dialysis_diagnosis')
-union
-SELECT person_id, Indication,drug_exposure_start_date as esrd_or_diaysis_date, index_date
-FROM IC_drug_exposure
-where Indication = 'dialysis_procedure'
 union
 SELECT person_id, Indication,observation_date as esrd_or_diaysis_date, index_date
 FROM IC_observation
